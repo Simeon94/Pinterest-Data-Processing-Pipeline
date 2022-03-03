@@ -14,7 +14,6 @@ class streaming:
         self.consumer = KafkaConsumer('MyFirstKafkaTopic', bootstrap_servers='localhost:9092', group_id='my-group') #value_deserializer=lambda x: loads(x).decode('utf-8'))
         self.message = []
         self.output_dict = {}
-        #self.session = boto3.Session(aws_access_key_id='AKIARIZ4XLQ2MVTJRX47', aws_secret_access_key='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')
         self.s3_client = boto3.client('s3')
         #self.test = test
         
