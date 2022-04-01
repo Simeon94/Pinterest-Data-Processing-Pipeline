@@ -26,7 +26,8 @@ class streaming:
     #         #print (self.message)
     
     def consume(self):
-              
+        #k = len(self.message_count) 
+        self.message_count.clear()     
         for message in self.consumer:
             self.message_count.append(message)
             
@@ -44,10 +45,22 @@ class streaming:
             print(type(self.api_data))
             print(self.api_data)
             
+            i = 0
+            
+            while os.path.exists(f'api_data{i}.json'):
+                i += 1
+            
+            file = open(f'api_data{i}.json', 'w')
+            
+            file.write(str(self.api_data))
+            file.close()
+            
             if k == 100:
                 break
             else:
                 continue
+            
+        print('all done')
                 
             
                 # i = 0
@@ -60,30 +73,37 @@ class streaming:
                 #     file.write(str(self.api_data))
                 #     file.close()
             
-    def save_api_to_json(self):
-            i = 0
+    # def save_api_to_json(self):
+    #         i = 0
             
-            while os.path.exists(f'api_data{i}.json'):
-                i += 1
+    #         while os.path.exists(f'api_data{i}.json'):
+    #             i += 1
             
-            file = open(f'api_data{i}.json', 'w')
+    #             file = open(f'api_data{i}.json', 'w')
             
-            file.write(str(self.api_data))
-            file.close()
+    #             file.write(str(self.api_data))
+    #             file.close()
             
-            time.sleep(1)
+    #             time.sleep(1)
+    #             if i == 100:
+    #                 break
+    #             else:
+    #                 continue
             
             #self.s3_client.upload_file(f'./api_data{i}.json', 'simeon-streaming-bucket', f'api_data{i}.json')
             #print('message saved as json file and sent to s3')
             
             
     def send_json_to_s3(self):
+        i = 0
         #file_path = f'./'
-        for i in range(0, 100):    
+        #for i in range(0, 100):
+        while os.path.exists(f'api_data{i}.json'):
+            i += 1
             self.s3_client.upload_file(f'api_data{i}.json', 'simeon-streaming-bucket', f'api_data{i}.json')
             print('message saved as json file and sent to s3')
             time.sleep(1)                          
-                
+            exit()    
             #break
                 
         #for p in range(1, 3):
@@ -142,7 +162,7 @@ class streaming:
         This function is used to run or execute all the methods.
         '''
         self.consume()
-        self.save_api_to_json()
+        #self.save_api_to_json()
         self.send_json_to_s3()
 
 batch = streaming()
