@@ -30,7 +30,7 @@ os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.datastax.spark:spark-cassand
   #.appName('SparkCassandraApp') \
   #.config('spark.cassandra.connection.host', 'ec2-52.51.100.105.eu-west-1.compute.amazonaws.com').config('spark.cassandra.connection.port', '9094').master('local').getOrCreate() 
   
-spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
+spark = SparkSession.builder.master("local[2]").appName("testapp").getOrCreate()
 sc = spark.sparkContext
 
 # conf = SparkConf()
