@@ -1,5 +1,5 @@
 
-import presto
+import prestodb
 import pandas as pd
 
 connection = prestodb.dbapi.connect(
