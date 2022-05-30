@@ -13,6 +13,8 @@ import pandas as pd
 from pyspark.sql.types import StructType,StructField,StringType
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
+import prestodb
+import pandas as pd
 
 
 s3 = boto3.resource('s3')
@@ -48,7 +50,7 @@ sc = spark.sparkContext
 
 json_list = []
 
-for i in range(10):
+for i in range(11, 50):
     obj = s3.Object(bucket_name='simeon-streaming-bucket', key=f'api_data{i}.json').get()
     obj_string_to_json = obj["Body"].read().decode('utf-8')
     data = dumps(obj_string_to_json).replace("'", '"').rstrip('"').lstrip('"')
@@ -62,3 +64,18 @@ df.show(truncate=True)
 #df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("spark.cassandra.connection.host", "localhost").option("spark.cassandra.connection.port", "9094").option("keyspace", "api_data").option("table", "api_data.pinterest_data").save()
 
 df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("keyspace", "api_data").option("table", "pinterest_data").save()
+
+connection = prestodb.dbapi.connect(
+    host='localhost',
+    catalog='cassandra',
+    user='Simeon',
+    port=8080,
+    schema='api_data'
+)
+
+cur = connection.cursor()
+cur.execute("SELECT * FROM pinterest_data")
+rows = cur.fetchall()
+
+api_df = pd.DataFrame(rows)
+print(api_df)
