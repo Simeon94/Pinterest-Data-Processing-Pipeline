@@ -1,5 +1,6 @@
 # script to send data to AWS S3 bucket and publish df to cassandra
 
+import sys
 import os
 import findspark
 #findspark.init()
@@ -14,68 +15,60 @@ from pyspark.sql.types import StructType,StructField,StringType
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 import prestodb
-import pandas as pd
+import logging
 
-
-s3 = boto3.resource('s3')
-bucket=s3.Bucket('simeon-streaming-bucket')
-
-os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.datastax.spark:spark-cassandra-connector-assembly_2.12:3.1.0 spark_s3_cassandra.py pyspark-shell'
-
-#./bin/spark-submit --packages com.datastax.spark:spark-cassandra-connector_2.12:3.2.1 spark_s3_cassandra.py
-
-#./bin/spark-submit/pyspark --packages com.datastax.spark:spark-cassandra-connector_2.12:3.2.1 spark_s3_cassandra.py
-
-
-#spark = SparkSession.builder.master("ec2-52.51.100.105.eu-west-1.compute.amazonaws.com").appName("testapp").getOrCreate()
-#spark = SparkSession.builder \
-  #.appName('SparkCassandraApp') \
-  #.config('spark.cassandra.connection.host', 'ec2-52.51.100.105.eu-west-1.compute.amazonaws.com').config('spark.cassandra.connection.port', '9094').master('local').getOrCreate() 
-  
-spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
-sc = spark.sparkContext
-
-# conf = SparkConf()
-
-# conf.set("spark.cassandra.connection.host", "52.51.100.105")
-
-# sc = SparkContext('spark://spark-hostname:9042',conf=conf)
-
-# spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
-
-# ss = SparkSession(sc)
-
-#spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
-#sc = spark.sparkContext
-
-json_list = []
-
-for i in range(11, 50):
-    obj = s3.Object(bucket_name='simeon-streaming-bucket', key=f'api_data{i}.json').get()
-    obj_string_to_json = obj["Body"].read().decode('utf-8')
-    data = dumps(obj_string_to_json).replace("'", '"').rstrip('"').lstrip('"')
-    json_list.append(data)
+try:
     
-df = spark.read.option("mode", "PERMISSIVE").option("columnNameOfCorruptRecord", "_corrupt_record").json(sc.parallelize(json_list))
+    s3 = boto3.resource('s3')
+    bucket=s3.Bucket('simeon-streaming-bucket')
 
-type(df)
-df.show(truncate=True)
+    os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.datastax.spark:spark-cassandra-connector-assembly_2.12:3.1.0 spark_s3_cassandra.py pyspark-shell'
+    
+    spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
+    sc = spark.sparkContext
 
-#df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("spark.cassandra.connection.host", "localhost").option("spark.cassandra.connection.port", "9094").option("keyspace", "api_data").option("table", "api_data.pinterest_data").save()
+    json_list = ()
 
-df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("keyspace", "api_data").option("table", "pinterest_data").save()
+    for i in range(10):
+        obj = s3.Object(bucket_name='simeon-streaming-bucket', key=f'api_data{i}.json').get()
+        obj_string_to_json = obj["Body"].read().decode('utf-8')
+        data = dumps(obj_string_to_json).replace("'", '"').rstrip('"').lstrip('"')
+        json_list.append(data)
+        
+    df = spark.read.option("mode", "PERMISSIVE").option("columnNameOfCorruptRecord", "_corrupt_record").json(sc.parallelize(json_list))
 
-connection = prestodb.dbapi.connect(
-    host='localhost',
-    catalog='cassandra',
-    user='Simeon',
-    port=8080,
-    schema='api_data'
-)
+    type(df)
+    df.show(truncate=True)
 
-cur = connection.cursor()
-cur.execute("SELECT * FROM pinterest_data")
-rows = cur.fetchall()
+    #df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("spark.cassandra.connection.host", "localhost").option("spark.cassandra.connection.port", "9094").option("keyspace", "api_data").option("table", "api_data.pinterest_data").save()
 
-api_df = pd.DataFrame(rows)
-print(api_df)
+    df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("keyspace", "api_data").option("table", "pinterest_data").save()
+
+    spark.stop()
+    #sys.exit()
+
+    connection = prestodb.dbapi.connect(
+        host='localhost',
+        catalog='cassandra',
+        user='Simeon',
+        port=8080,
+        schema='api_data'
+    )
+
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM pinterest_data")
+    rows = cur.fetchall()
+
+    api_df = pd.DataFrame(rows)
+    print(api_df)
+
+
+except Exception as e:
+    logging.basicConfig(filename="/home/ubuntu/airflow/error_log",
+                    filemode='a',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.ERROR)
+    logging.error(e, exc_info=True)
+    
+    
