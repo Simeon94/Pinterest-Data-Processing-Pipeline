@@ -27,7 +27,7 @@ try:
     spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
     sc = spark.sparkContext
 
-    json_list = ()
+    json_list = []
 
     for i in range(10):
         obj = s3.Object(bucket_name='simeon-streaming-bucket', key=f'api_data{i}.json').get()
@@ -70,5 +70,3 @@ except Exception as e:
                     datefmt='%H:%M:%S',
                     level=logging.ERROR)
     logging.error(e, exc_info=True)
-    
-    
