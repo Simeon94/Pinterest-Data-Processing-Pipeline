@@ -23,12 +23,12 @@ spark=SparkSession(sc).builder.appName("S3App").getOrCreate()
 print("Working")
 
 # Configure the setting to read from the S3 bucket
-# accessKeyId = os.environ["AWS_ACCESS_KEY"]
-# secretAccessKey = os.environ["AWS_SECRET_ACCESS_KEY"]
+accessKeyId = os.environ["AWS_ACCESS_KEY"]
+secretAccessKey = os.environ["AWS_SECRET_ACCESS_KEY"]
 
 hadoopConf = sc._jsc.hadoopConfiguration()
-hadoopConf.set('fs.s3a.access.key', 'AKIARIZ4XLQ2MVTJRX47')
-hadoopConf.set('fs.s3a.secret.key', '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')
+hadoopConf.set('fs.s3a.access.key', accessKeyId)
+hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
 hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') # Allows the package to authenticate with AWS
 
 
