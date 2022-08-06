@@ -18,7 +18,6 @@ kafka_bootstrap_servers = "localhost:9092"
 spark = SparkSession \
     .builder \
     .appName("Python Spark SQL") \
-    .config("spark.jars", "/home/ubuntu/postgresql-42.2.6.jar") \
     .getOrCreate()
 
 # Only display Error messages in the console.
@@ -94,27 +93,25 @@ spark_api_data = streaming_df4
 
 # function to upload streaming_df to postgres database table
 def write_streaming_df_to_postgres(df, epoch_id):
-    mode='append'
-    url = 'jdbc:postgresql://localhost:5432/pinterest'
-    properties = {"user": "postgres", "password": "password", "driver": "org.postgresql.Driver"}
-    df.write.jdbc(url=url, table="pinterest", mode=mode, properties=properties)
+    # mode='append'
+    # url = 'jdbc:postgresql://localhost:5432/postgres'
+    # properties = {"user": "postgres", "password": "password", "driver": "org.postgresql.Driver"}
+    # df.write.jdbc(url=url, table="pinterest", mode=mode, properties=properties).save()
 
-    # df.write \
-    #     .mode('append') \
-    #         .format('jdbc') \
-    #             .option('url', f'jdbc:postgresql://localhost:5432/pinterest') \
-    #                 .option('driver', 'org.postgresql.Driver') \
-    #                     .option('dbtable', 'pinterest') \
-    #                         .option('user', 'postgres') \
-    #                             .option('password', 'password') \
-    #                                 .save()
+    df.write \
+    .mode('append') \
+    .format('jdbc') \
+    .option('url', f'jdbc:postgresql://localhost:5432/postgres') \
+    .option('driver', 'org.postgresql.Driver') \
+    .option('dbtable', 'pinterest') \
+    .option('user', 'postgres') \
+    .option('password', 'password') \
+    .save()
         
 spark_api_data.writeStream\
-    .format("jdbc") \
-        .foreachBatch(write_streaming_df_to_postgres) \
-            .outputMode("append") \
-                .start() \
-                    .awaitTermination()
+    .foreachBatch(write_streaming_df_to_postgres) \
+    .start() \
+    .awaitTermination()
                     
 spark.stop()
 # spark_api_data.writeStream\

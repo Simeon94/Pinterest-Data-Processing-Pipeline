@@ -11,7 +11,7 @@ connection = prestodb.dbapi.connect(
 )
 
 cur = connection.cursor()
-cur.execute("SELECT * FROM pinterest_data")
+cur.execute("SELECT * FROM pinterest_data2")
 rows = cur.fetchall()
 
 # for row in rows:

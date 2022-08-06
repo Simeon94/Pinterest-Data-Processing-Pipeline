@@ -1,48 +1,73 @@
 # script to send data to AWS S3 bucket and publish df to cassandra
 
-import sys
-import os
-import findspark
-#findspark.init()
-#import org.apache.spark.sql.cassandra._
-from json import loads
-from json import dumps
+from pyspark.sql import SparkSession
 from pyspark import SparkContext, SparkConf
-from pyspark.sql import SparkSession, SQLContext
-import boto3
+import os
 import pandas as pd
+import prestodb
+import logging
 from pyspark.sql.types import StructType,StructField,StringType
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
-import prestodb
-import logging
+from pyspark.sql.functions import regexp_replace, col, when
+
+# Adding the packages required to get data from S3  
+os.environ["PYSPARK_SUBMIT_ARGS"] = "--packages com.amazonaws:aws-java-sdk-s3:1.12.196,org.apache.hadoop:hadoop-aws:3.3.1,com.datastax.spark:spark-cassandra-connector-assembly_2.12:3.2.0 pyspark-shell"
+
+# Creating our Spark configuration
+conf = SparkConf() \
+    .setAppName('S3toSpark') \
+    
+sc=SparkContext(conf=conf)
+
+# # Create our Spark session
+spark=SparkSession(sc).builder.appName("S3App").getOrCreate()
+print("Working")
+
+# Configure the setting to read from the S3 bucket
+accessKeyId = os.environ["AWS_ACCESS_KEY"]
+secretAccessKey = os.environ["AWS_SECRET_ACCESS_KEY"]
+
+hadoopConf = sc._jsc.hadoopConfiguration()
+hadoopConf.set('fs.s3a.access.key', accessKeyId)
+hadoopConf.set('fs.s3a.secret.key', secretAccessKey)
+hadoopConf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider') # Allows the package to authenticate with AWS
+
 
 try:
-    
-    s3 = boto3.resource('s3')
-    bucket=s3.Bucket('simeon-streaming-bucket')
+    df = spark.read.json(f"s3a://simeon-streaming-bucket/api_data/*.json")
 
-    os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.datastax.spark:spark-cassandra-connector-assembly_2.12:3.1.0 spark_s3_cassandra.py pyspark-shell'
-    
-    spark = SparkSession.builder.master("local").appName("testapp").getOrCreate()
-    sc = spark.sparkContext
+    # # Cleaning the data
+    df = (df.replace({'No description available Story format':None}, subset=['description']) \
+        .replace({'No Title Data Available':None}, subset=['title']) \
+        .replace({'User Info Error':None}, subset=['follower_count']) \
+        .replace({'Image src error':None}, subset=['image_src']) \
+        .withColumn('save_location', regexp_replace('save_location', 'Local save in ', '')) \
+        .withColumn('follower_count', regexp_replace('follower_count', 'M', '000000')) \
+        .withColumn('follower_count', regexp_replace('follower_count', 'k', '000')) \
+        .replace({'N,o, ,T,a,g,s, ,A,v,a,i,l,a,b,l,e':None}, subset=['tag_list']) \
+        .withColumn('index', col('index').cast("int")) \
+        .withColumn('follower_count', col('follower_count').cast("int")) \
+        .withColumn('downloaded', col('downloaded').cast("int")) \
+        .distinct())
 
-    json_list = []
+    # replace empty cells with null
+    df = df.select([when(col(c)=="",None).otherwise(col(c)).alias(c) for c in df.columns])
 
-    for i in range(10):
-        obj = s3.Object(bucket_name='simeon-streaming-bucket', key=f'api_data{i}.json').get()
-        obj_string_to_json = obj["Body"].read().decode('utf-8')
-        data = dumps(obj_string_to_json).replace("'", '"').rstrip('"').lstrip('"')
-        json_list.append(data)
-        
-    df = spark.read.option("mode", "PERMISSIVE").option("columnNameOfCorruptRecord", "_corrupt_record").json(sc.parallelize(json_list))
+    # reorder the dataframe columns
+    df = df.select('index', 'category', 'description', 'downloaded', 'follower_count', 'image_src', 'is_image_or_video', 'save_location', 'tag_list', 'title', 'unique_id')
 
-    type(df)
+    df.printSchema()
     df.show(truncate=True)
 
-    #df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("spark.cassandra.connection.host", "localhost").option("spark.cassandra.connection.port", "9094").option("keyspace", "api_data").option("table", "api_data.pinterest_data").save()
-
-    df.write.format("org.apache.spark.sql.cassandra").mode("overwrite").option("confirm.truncate", "true").option("keyspace", "api_data").option("table", "pinterest_data").save()
+    df.write.format("org.apache.spark.sql.cassandra") \
+        .mode("overwrite") \
+        .option("confirm.truncate", "true") \
+        .option("spark.cassandra.connection.host", "127.0.0.1") \
+        .option("spark.cassandra.connection.port", "9042") \
+        .option("keyspace", "api_data") \
+        .option("table", "pinterest_data2") \
+        .save()
 
     spark.stop()
     #sys.exit()
@@ -56,12 +81,11 @@ try:
     )
 
     cur = connection.cursor()
-    cur.execute("SELECT * FROM pinterest_data")
+    cur.execute("SELECT * FROM pinterest_data2")
     rows = cur.fetchall()
 
     api_df = pd.DataFrame(rows)
     print(api_df)
-
 
 except Exception as e:
     logging.basicConfig(filename="/home/ubuntu/airflow/error_log",
