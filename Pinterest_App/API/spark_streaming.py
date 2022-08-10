@@ -46,19 +46,6 @@ data_spark_schema = ArrayType(StructType([
         StructField("downloaded", StringType(), True), \
         StructField("save_location",StringType(), True)]))
 
-# data_spark_schema = ArrayType(StructType([
-#         T.StructField("category", T.StringType(), True), \
-#         T.StructField("index", T.StringType(), True), \
-#         T.StructField("unique_id", T.StringType(), True), \
-#         T.StructField("title", T.StringType(), True), \
-#         T.StructField("description", T.StringType(), True), \
-#         T.StructField("follower_count", T.StringType(), True), \
-#         T.StructField("tag_list", T.StringType(), True), \
-#         T.StructField("is_image_or_video", T.StringType(), True), \
-#         T.StructField("image_src", T.StringType(), True), \
-#         T.StructField("downloaded", T.StringType(), True), \
-#         T.StructField("save_location", T.StringType(), True)]))
-
 # Select the value part of the kafka message and cast it to a string.
 streaming_df1 = streaming_df.selectExpr("CAST(value AS STRING)")
 
@@ -91,12 +78,8 @@ spark_api_data = streaming_df4
 
 #spark_api_data.printSchema()
 
-# function to upload streaming_df to postgres database table
+# method to upload streaming_df to postgres database table
 def write_streaming_df_to_postgres(df, epoch_id):
-    # mode='append'
-    # url = 'jdbc:postgresql://localhost:5432/postgres'
-    # properties = {"user": "postgres", "password": "password", "driver": "org.postgresql.Driver"}
-    # df.write.jdbc(url=url, table="pinterest", mode=mode, properties=properties).save()
 
     df.write \
     .mode('append') \
@@ -114,14 +97,3 @@ spark_api_data.writeStream\
     .awaitTermination()
                     
 spark.stop()
-# spark_api_data.writeStream\
-#     .foreachBatch(write_streaming_df_to_postgres)\
-#         .start() \
-#             .awaitTermination()
-    
-
-# outputting the messages to console
-#spark_api_data.writeStream.format("console").outputMode("append").option("truncate", True).start().awaitTermination()  #This prints results to console
-
-
-
