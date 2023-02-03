@@ -9,6 +9,7 @@ import os
 
 # submit the spark sql package to PySpark during script execution
 os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1,org.postgresql:postgresql:42.2.6 pyspark-shell'
+#os.environ['PYSPARK_SUBMIT_ARGS'] = './bin/spark-class org.apache.spark.deploy.SparkSubmit'
 
 # state the topic we want to stream the data from
 kafka_topic_name = "MyFirstKafkaTopic"
@@ -88,7 +89,7 @@ def write_streaming_df_to_postgres(df, epoch_id):
     .option('driver', 'org.postgresql.Driver') \
     .option('dbtable', 'pinterest') \
     .option('user', 'postgres') \
-    .option('password', 'password') \
+    .option('password', 'postgres') \
     .save()
         
 spark_api_data.writeStream\

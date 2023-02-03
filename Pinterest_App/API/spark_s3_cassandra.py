@@ -1,10 +1,10 @@
-# script to send data to AWS S3 bucket and publish df to cassandra
+# script to get data from AWS S3 bucket and publish df to cassandra
 
 from pyspark.sql import SparkSession
 from pyspark import SparkContext, SparkConf
 import os
 import pandas as pd
-import prestodb
+#import prestodb
 import logging
 from pyspark.sql.types import StructType,StructField,StringType
 from pyspark.sql import functions as F
@@ -12,6 +12,8 @@ from pyspark.sql import types as T
 from pyspark.sql.functions import regexp_replace, col, when
 
 # Adding the packages required to get data from S3  
+#os.environ["PYSPARK_SUBMIT_ARGS"] = "--packages com.amazonaws:aws-java-sdk-s3:1.12.196,org.apache.hadoop:hadoop-aws:3.3.1,com.datastax.spark:spark-cassandra-connector-assembly_2.12:3.2.0 pyspark-shell"
+
 os.environ["PYSPARK_SUBMIT_ARGS"] = "--packages com.amazonaws:aws-java-sdk-s3:1.12.196,org.apache.hadoop:hadoop-aws:3.3.1,com.datastax.spark:spark-cassandra-connector-assembly_2.12:3.2.0 pyspark-shell"
 
 class Batch_Streaming:
@@ -35,8 +37,8 @@ class Batch_Streaming:
         print("Working")
 
         # Configure the setting to read from the S3 bucket
-        accessKeyId = os.environ["AWS_ACCESS_KEY"]
-        secretAccessKey = os.environ["AWS_SECRET_ACCESS_KEY"]
+        accessKeyId = os.environ["aws_access_key_id"]
+        secretAccessKey = os.environ["aws_secret_access_key"]
 
         hadoopConf = sc._jsc.hadoopConfiguration()
         hadoopConf.set('fs.s3a.access.key', accessKeyId)
@@ -73,7 +75,8 @@ class Batch_Streaming:
             self.df = self.df.select('index', 'category', 'description', 'downloaded', 'follower_count', 'image_src', 'is_image_or_video', 'save_location', 'tag_list', 'title', 'unique_id')
 
             self.df.printSchema()
-            self.df.show(truncate=True)
+            self.df.show(truncate=False)
+            #self.df.display(20)
 
             self.df.write.format("org.apache.spark.sql.cassandra") \
                 .mode("overwrite") \
@@ -87,28 +90,29 @@ class Batch_Streaming:
             spark.stop()
             #sys.exit()
 
-            connection = prestodb.dbapi.connect(
-                host='localhost',
-                catalog='cassandra',
-                user='Simeon',
-                port=8080,
-                schema='api_data'
-            )
+            # connection = prestodb.dbapi.connect(
+            #     host='localhost',
+            #     catalog='cassandra',
+            #     user='Simeon',
+            #     port=8080,
+            #     schema='api_data'
+            # )
 
-            cur = connection.cursor()
-            cur.execute("SELECT * FROM pinterest_data2")
-            rows = cur.fetchall()
+            # cur = connection.cursor()
+            # cur.execute("SELECT * FROM pinterest_data2")
+            # rows = cur.fetchall()
 
-            api_df = pd.DataFrame(rows)
-            print(api_df)
-
-        except Exception as e:
-            logging.basicConfig(filename="/home/ubuntu/airflow/error_log",
-                            filemode='a',
-                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                            datefmt='%H:%M:%S',
-                            level=logging.ERROR)
-            logging.error(e, exc_info=True)
+            # api_df = pd.DataFrame(rows)
+            # print(api_df)
+        except:
+            pass
+        # except Exception as e:
+        #     logging.basicConfig(filename="/home/ubuntu/airflow/error_log",
+        #                     filemode='a',
+        #                     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+        #                     datefmt='%H:%M:%S',
+        #                     level=logging.ERROR)
+        #     logging.error(e, exc_info=True)
             
     def run(self):
         '''
