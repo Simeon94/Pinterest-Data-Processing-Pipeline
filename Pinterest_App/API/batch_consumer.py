@@ -29,7 +29,7 @@ class streaming:
 
         #!!!! this instantiate an object call s3 to boto3.s3.client with credentials
         s3 = boto3.client('s3', region_name="eu-west-2", \
-        endpoint_url="https://s3.console.aws.amazon.com/s3/buckets/simeon-streaming-bucket", aws_access_key_id="AKIARIZ4XLQ2HZPJRT6R", aws_secret_access_key="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")
+        endpoint_url="https://s3.console.aws.amazon.com/s3/buckets/simeon-streaming-bucket", aws_access_key_id=accessKeyId, aws_secret_access_key=secretAccessKey)
 
         #this instantiate an object call myclient to boto3.s3.resource that use
         #credential inside .aws folder, since no designated credential given.
@@ -43,14 +43,14 @@ class streaming:
         This method is used to consume api data and each one is saved \
         in a json file which is then uploaded to s3 bucket.
         '''
-        counter = 205
+        counter = 0
         for message in self.consumer:
             
             json_object = dumps(message.value)
             s3_apidata = 'api_data/' + str(counter) + '.json'
             self.my_bucket.put_object(Key = s3_apidata , Body = json_object)
             counter += 1
-            if counter > 210:
+            if counter > 201:
                 break
 
     def run(self):
